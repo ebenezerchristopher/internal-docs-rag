@@ -232,8 +232,10 @@ export function NotionImportButton({ onComplete }: ImportButtonProps) {
                     >
                       notion.so/profile/integrations
                     </a>
-                    . Share each page you want indexed with the integration.
-                    The token is sent once and not stored.
+                    . Capabilities: only{" "}
+                    <em>Read content</em> is required. Share each page you
+                    want indexed with the integration. The token is sent once
+                    and not stored.
                   </p>
                 </div>
                 <div>
