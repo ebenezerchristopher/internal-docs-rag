@@ -105,6 +105,12 @@ incrementally as it arrives.
   one managed Postgres instance. pgvector is plenty for 1,200 docs; we
   are not at the scale where a dedicated vector store's metadata
   filtering or namespaces would pay off.
+- **No index on `documents.embedding` for the MVP.** pgvector's IVFFlat
+  caps at 2000 dims; HNSW caps at 2000 on pgvector < 0.7 and 4096 on
+  0.7+. NVIDIA Nemotron (2048-dim) doesn't fit either. For 60 docs
+  (~240 chunks), exact brute-force search runs in microseconds. Add an
+  HNSW index once the corpus grows past ~10k chunks AND Supabase is on
+  pgvector 0.7+; the migration has the DDL commented out for that case.
 - **OpenAI-compatible providers.** The user can swap OpenAI for
   OpenRouter, Together, Groq, or a local Ollama endpoint by changing
   four env vars. Embeddings and generation can use different providers.

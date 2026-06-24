@@ -29,12 +29,15 @@ create table if not exists public.documents (
   created_at timestamptz not null default now()
 );
 
--- 3. IVFFlat index for cosine distance search.
---    lists = 100 is fine up to ~1M vectors; bump as the corpus grows.
-create index if not exists documents_embedding_ivf
-  on public.documents
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+-- 3. No index. pgvector's IVFFlat caps at 2000 dims and HNSW caps at 2000
+--    on pgvector < 0.7.0 (4096 on 0.7+). For up to ~10k chunks, exact
+--    brute-force search is fast enough that an index is not needed. If
+--    your corpus grows past that AND your Supabase project is on pgvector
+--    >= 0.7.0, add:
+--      create index documents_embedding_hnsw
+--        on public.documents
+--        using hnsw (embedding vector_cosine_ops);
+--    (HNSW also requires pgvector >= 0.5.0; Supabase has this.)
 
 -- 4. match_documents RPC.
 --    Returns the top match_count rows whose cosine similarity to
