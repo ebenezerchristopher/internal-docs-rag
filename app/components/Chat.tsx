@@ -74,7 +74,7 @@ export function Chat() {
         let buffer = "";
         let headerParsed = false;
         let refused = false;
-        let sources: Source[] = [];
+        let allSources: Source[] = [];
 
         const updateAssistant = (next: Partial<Message>) => {
           setMessages((m) =>
@@ -102,21 +102,25 @@ export function Chat() {
 
               if (header.startsWith("__SOURCES__")) {
                 try {
-                  sources = JSON.parse(
+                  allSources = JSON.parse(
                     header.slice("__SOURCES__".length),
                   ) as Source[];
                 } catch {
-                  sources = [];
+                  allSources = [];
                 }
               } else if (header.startsWith("__REFUSAL__")) {
                 refused = true;
               }
-              updateAssistant({ text: "", sources, refused });
+              updateAssistant({ text: "", sources: allSources, refused });
             }
 
             updateAssistant({ text: buffer });
           }
-          updateAssistant({ text: buffer, pending: false });
+          // After streaming, filter sources to only those the model cited
+          // in [N] form. Fall back to the top-1 source if no citations
+          // were emitted (model didn't follow the prompt).
+          const cited = collectCitedSources(allSources, buffer);
+          updateAssistant({ text: buffer, sources: cited, pending: false });
         };
 
         await consume();
@@ -260,7 +264,7 @@ function SourcesPanel({ sources }: { sources: Source[] }) {
         className="flex w-full items-center justify-between text-left font-medium text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
       >
         <span>
-          {sources.length} source{sources.length === 1 ? "" : "s"}
+          {sources.length} source{sources.length === 1 ? "" : "s"} cited
         </span>
         <span>{open ? "Hide" : "Show"}</span>
       </button>
@@ -292,4 +296,25 @@ function SourcesPanel({ sources }: { sources: Source[] }) {
       )}
     </div>
   );
+}
+
+/**
+ * Scans the streamed text for inline [N] citations and returns the subset
+ * of `allSources` whose index appears at least once. Preserves the
+ * order of `allSources`. Falls back to the top-1 source if no citations
+ * were emitted (e.g., the model didn't follow the prompt).
+ */
+function collectCitedSources(allSources: Source[], text: string): Source[] {
+  if (allSources.length === 0) return [];
+  const cited = new Set<number>();
+  const re = /\[(\d+)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const n = Number(m[1]);
+    if (Number.isInteger(n) && n >= 1 && n <= allSources.length) {
+      cited.add(n);
+    }
+  }
+  if (cited.size === 0) return allSources.slice(0, 1);
+  return allSources.filter((s) => cited.has(s.index));
 }
