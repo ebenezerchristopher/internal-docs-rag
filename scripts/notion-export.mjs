@@ -381,6 +381,13 @@ async function main() {
     } catch (e) {
       err++;
       console.error(`[export] (${i + 1}/${files.length}) FAILED ${title}: ${e.message}`);
+      if (err === 1 && /404|not_found|object_not_found/i.test(e.message)) {
+        console.error(
+          "[export] Hint: a 404 on the FIRST page usually means the parent page is not shared with the integration. " +
+            "Open the page in Notion -> ... menu -> Connections -> add the integration. " +
+            "Then re-run; child pages are picked up automatically.",
+        );
+      }
     }
     // Notion rate limit: ~3 req/s
     await new Promise((r) => setTimeout(r, 350));
