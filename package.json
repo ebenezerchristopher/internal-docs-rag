@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/build-index.mjs",
+    "prebuild": "node --env-file-if-exists=.env.local scripts/build-index.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "index": "node scripts/build-index.mjs",
-    "check:env": "node scripts/check-env.mjs"
+    "index": "node --env-file-if-exists=.env.local scripts/build-index.mjs",
+    "check:env": "node --env-file-if-exists=.env.local scripts/check-env.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",

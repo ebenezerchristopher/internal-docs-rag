@@ -1,6 +1,16 @@
 -- Internal Docs RAG — Supabase schema
 -- Run this once in the Supabase SQL editor (or via the supabase CLI).
 -- It is idempotent: it can be re-run safely.
+--
+-- IMPORTANT: the embedding dimension must match the EMBEDDING_MODEL.
+--   1536 = OpenAI text-embedding-3-small, text-embedding-ada-002
+--   2048 = NVIDIA Nemotron (nvidia/llama-nemotron-embed-vl-1b-v2:free
+--          via OpenRouter), BGE-large-en
+--   3072 = OpenAI text-embedding-3-large
+--   768  = many open-source models (mpnet, e5-large)
+-- If you switch embedding models and the dim differs, change every
+-- occurrence of the dim below and re-run this file. (pgvector requires
+-- a fixed dim per column.)
 
 -- 1. Enable pgvector.
 create extension if not exists vector;
@@ -9,12 +19,13 @@ create extension if not exists vector;
 --    id:        stable chunk id derived from docId + heading + chunkIndex
 --    content:   chunk text
 --    metadata:  jsonb with title, heading, source (repo-relative path), build_id
---    embedding: 1536 dims (matches text-embedding-3-small)
+--    embedding: 2048 dims (NVIDIA Nemotron via OpenRouter; change if using a
+--               different model — see header above)
 create table if not exists public.documents (
   id text primary key,
   content text not null,
   metadata jsonb not null default '{}'::jsonb,
-  embedding vector(1536) not null,
+  embedding vector(2048) not null,
   created_at timestamptz not null default now()
 );
 
@@ -29,7 +40,7 @@ create index if not exists documents_embedding_ivf
 --    Returns the top match_count rows whose cosine similarity to
 --    query_embedding is >= match_threshold, ordered by similarity desc.
 create or replace function public.match_documents(
-  query_embedding vector(1536),
+  query_embedding vector(2048),
   match_count int default 6,
   match_threshold float default 0
 ) returns table (
