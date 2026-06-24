@@ -100,19 +100,10 @@ export class LLMClient {
               }
               try {
                 const json = JSON.parse(payload) as {
-                  choices?: {
-                    delta?: {
-                      content?: string | null;
-                      reasoning_content?: string | null;
-                    };
-                  }[];
+                  choices?: { delta?: { content?: string | null } }[];
                 };
-                const d = json.choices?.[0]?.delta;
-                // Standard OpenAI field. Falls back to reasoning_content
-                // for DeepSeek-style models that emit the answer in a
-                // separate "thinking" field.
-                const text = d?.content ?? d?.reasoning_content ?? null;
-                if (text) controller.enqueue(encoder.encode(text));
+                const delta = json.choices?.[0]?.delta?.content;
+                if (delta) controller.enqueue(encoder.encode(delta));
               } catch {
                 // ignore malformed lines; providers occasionally send keep-alives
               }
