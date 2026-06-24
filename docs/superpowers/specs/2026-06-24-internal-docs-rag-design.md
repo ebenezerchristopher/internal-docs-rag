@@ -23,8 +23,8 @@
 ## Stack (decided with the user)
 
 - **App:** Next.js 15 (App Router) + TypeScript + Tailwind 4. The Redence starter repo was not available in `/tmp`, so a minimal hand-rolled Next.js scaffold is used.
-- **Generation:** OpenAI-compatible chat completions (e.g., `gpt-4o-mini` directly, or `openai/gpt-4o-mini` via OpenRouter). Configured via `OPENAI_BASE_URL` + `OPENAI_API_KEY` + `GENERATION_MODEL`.
-- **Embeddings:** OpenAI-compatible `/v1/embeddings` (e.g., `text-embedding-3-small`, 1536 dims). Same base URL + key, separate `EMBEDDING_MODEL`.
+- **Generation:** OpenAI-compatible chat completions (e.g., `gpt-4o-mini` directly, or `openai/gpt-4o-mini` via OpenRouter). Configured via `GENERATION_BASE_URL` + `GENERATION_API_KEY` + `GENERATION_MODEL`. May be a different provider than embeddings.
+- **Embeddings:** OpenAI-compatible `/v1/embeddings` (e.g., `text-embedding-3-small`, 1536 dims). Configured via `EMBEDDING_BASE_URL` + `EMBEDDING_API_KEY` + `EMBEDDING_MODEL`. May be a different provider than generation.
 - **Vector store:** Supabase Postgres with the `pgvector` extension. One `documents` table + a `match_documents` RPC for cosine top-k.
 - **No auth, no Tailwind plugins beyond defaults, no extra UI libraries.**
 
@@ -79,7 +79,7 @@ Thin client over the OpenAI-compatible `/v1/embeddings` endpoint.
 embed(texts: string[]): Promise<number[][]>
 ```
 
-- Reads `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `EMBEDDING_MODEL` from `process.env`.
+- Reads `EMBEDDING_BASE_URL`, `EMBEDDING_API_KEY`, `EMBEDDING_MODEL` from `process.env`. Embeddings and generation have fully decoupled env vars so they can run on different providers.
 - Batches up to 64 inputs per request to keep payload sizes reasonable.
 - Bounded concurrency of 8 requests in flight (keeps the indexer polite to the provider).
 
@@ -173,7 +173,7 @@ The two stages are independent and complementary: Stage 1 catches the empty-corp
 | LLM provider 5xx | One retry with the same prompt. If still failing, return 502 to the client. |
 | Supabase down | Retrieval throws; the route returns 503. |
 | Empty corpus | Indexer succeeds with 0 rows; the first request triggers Stage 1 refusal. |
-| `OPENAI_BASE_URL` set to a non-OpenAI provider | Works as long as the provider implements `/v1/embeddings` and `/v1/chat/completions` (OpenRouter, Together, Groq, Ollama all do). |
+| `EMBEDDING_BASE_URL` or `GENERATION_BASE_URL` set to a non-OpenAI provider | Works as long as the provider implements `/v1/embeddings` and `/v1/chat/completions` (OpenRouter, Together, Groq, Ollama all do). The two can be on different providers. |
 | Embedding dim mismatch | Hard-coded to 1536. If a different model is used, the migration's `vector(1536)` and the embedder's assumed dim must match; the README will call this out. |
 
 ## Testing strategy
@@ -190,23 +190,27 @@ No unit tests in the MVP. The bar is the deployed behavior; tests come in a foll
 ## Environment variables
 
 ```
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_API_KEY=sk-...
+EMBEDDING_BASE_URL=https://api.openai.com/v1
+EMBEDDING_API_KEY=sk-...
 EMBEDDING_MODEL=text-embedding-3-small
+GENERATION_BASE_URL=https://api.openai.com/v1
+GENERATION_API_KEY=sk-...
 GENERATION_MODEL=gpt-4o-mini
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 SIMILARITY_THRESHOLD=0.72
 ```
 
-`SIMILARITY_THRESHOLD` is optional and defaults to `0.72`.
+`SIMILARITY_THRESHOLD` is optional and defaults to `0.72`. Embedding and
+generation providers can be different (e.g., OpenAI for one, OpenRouter
+for the other); the env vars are fully decoupled.
 
 ## Deployment
 
 1. Create a Supabase project, enable the `pgvector` extension, run `supabase/migrations/0001_init.sql` in the SQL editor.
 2. Push the repo to GitHub.
 3. Import the repo into Vercel.
-4. Add the env vars above (without the `OPENAI_BASE_URL` default, since the value will be real).
+4. Add the env vars above (without the example default values, since the values will be real).
 5. Trigger a deploy. The `prebuild` script runs the indexer against the real Supabase + embedding provider.
 6. Once the build is green, the live URL is the Vercel project URL.
 

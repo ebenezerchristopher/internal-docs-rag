@@ -24,12 +24,12 @@ export class EmbeddingsClient {
   }
 
   static fromEnv(): EmbeddingsClient {
-    const baseUrl = process.env.OPENAI_BASE_URL;
-    const apiKey = process.env.OPENAI_API_KEY;
+    const baseUrl = process.env.EMBEDDING_BASE_URL;
+    const apiKey = process.env.EMBEDDING_API_KEY;
     const model = process.env.EMBEDDING_MODEL;
     if (!baseUrl || !apiKey || !model) {
       throw new Error(
-        "Missing one of: OPENAI_BASE_URL, OPENAI_API_KEY, EMBEDDING_MODEL",
+        "Missing one of: EMBEDDING_BASE_URL, EMBEDDING_API_KEY, EMBEDDING_MODEL",
       );
     }
     return new EmbeddingsClient({ baseUrl, apiKey, model });

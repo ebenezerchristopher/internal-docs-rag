@@ -27,12 +27,12 @@ export class LLMClient {
   }
 
   static fromEnv(): LLMClient {
-    const baseUrl = process.env.OPENAI_BASE_URL;
-    const apiKey = process.env.OPENAI_API_KEY;
+    const baseUrl = process.env.GENERATION_BASE_URL;
+    const apiKey = process.env.GENERATION_API_KEY;
     const model = process.env.GENERATION_MODEL;
     if (!baseUrl || !apiKey || !model) {
       throw new Error(
-        "Missing one of: OPENAI_BASE_URL, OPENAI_API_KEY, GENERATION_MODEL",
+        "Missing one of: GENERATION_BASE_URL, GENERATION_API_KEY, GENERATION_MODEL",
       );
     }
     return new LLMClient({ baseUrl, apiKey, model });

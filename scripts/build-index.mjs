@@ -18,8 +18,8 @@ const DOCS_DIR = path.join(ROOT, "content", "docs");
 const BUILD_ID = new Date().toISOString().replace(/[:.]/g, "-");
 
 const REQUIRED = [
-  "OPENAI_BASE_URL",
-  "OPENAI_API_KEY",
+  "EMBEDDING_BASE_URL",
+  "EMBEDDING_API_KEY",
   "EMBEDDING_MODEL",
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -284,8 +284,8 @@ async function main() {
   }
 
   const embedder = new EmbeddingsClient({
-    baseUrl: process.env.OPENAI_BASE_URL,
-    apiKey: process.env.OPENAI_API_KEY,
+    baseUrl: process.env.EMBEDDING_BASE_URL,
+    apiKey: process.env.EMBEDDING_API_KEY,
     model: process.env.EMBEDDING_MODEL,
   });
 

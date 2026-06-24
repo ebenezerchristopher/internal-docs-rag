@@ -2,9 +2,11 @@
 // Print which required env vars are set / missing, without making any API calls.
 
 const REQUIRED = [
-  "OPENAI_BASE_URL",
-  "OPENAI_API_KEY",
+  "EMBEDDING_BASE_URL",
+  "EMBEDDING_API_KEY",
   "EMBEDDING_MODEL",
+  "GENERATION_BASE_URL",
+  "GENERATION_API_KEY",
   "GENERATION_MODEL",
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",

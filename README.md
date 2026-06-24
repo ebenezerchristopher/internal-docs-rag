@@ -9,7 +9,9 @@ Built on the Redence starter (Next.js 15 + Tailwind 4 + TypeScript). Stack
 swap-ins:
 
 - **Embeddings & LLM:** any OpenAI-compatible API (OpenAI, OpenRouter,
-  Together, Groq, Ollama). Just point `OPENAI_BASE_URL` at it.
+  Together, Groq, Ollama). Embeddings and generation can be on different
+  providers — set `EMBEDDING_BASE_URL`/`EMBEDDING_API_KEY` separately from
+  `GENERATION_BASE_URL`/`GENERATION_API_KEY`.
 - **Vector store:** Supabase Postgres + `pgvector`. One table, one RPC.
 
 ## Demo in 5 minutes
@@ -99,7 +101,8 @@ incrementally as it arrives.
   filtering or namespaces would pay off.
 - **OpenAI-compatible providers.** The user can swap OpenAI for
   OpenRouter, Together, Groq, or a local Ollama endpoint by changing
-  two env vars. The code never imports the OpenAI SDK directly.
+  four env vars. Embeddings and generation can use different providers.
+  The code never imports the OpenAI SDK directly.
 - **Static corpus in `content/docs/`, not live Notion.** The brief
   allows static markdown. Indexing 1,200 docs live from Notion adds an
   OAuth flow, secret rotation, rate limits, and a 5-10 minute initial
