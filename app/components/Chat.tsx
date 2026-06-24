@@ -10,6 +10,7 @@ interface Source {
   heading: string;
   source: string;
   similarity: number;
+  text: string;
 }
 
 interface Message {
@@ -223,6 +224,8 @@ export function Chat() {
 }
 
 function MessageBubble({ message }: { message: Message }) {
+  const [activeCitation, setActiveCitation] = useState<number | null>(null);
+
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -233,6 +236,11 @@ function MessageBubble({ message }: { message: Message }) {
     );
   }
 
+  const activeSource =
+    activeCitation != null
+      ? message.sources?.find((s) => s.index === activeCitation)
+      : null;
+
   return (
     <div className="flex justify-start">
       <div className="max-w-[90%] space-y-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
@@ -241,20 +249,115 @@ function MessageBubble({ message }: { message: Message }) {
             message.refused ? "italic text-neutral-500" : ""
           }`}
         >
-          {message.text}
+          {renderAnswerWithCitations(
+            message.text,
+            message.sources ?? [],
+            (n) =>
+              setActiveCitation((cur) => (cur === n ? null : n)),
+          )}
           {message.pending && (
             <span className="ml-1 inline-block h-4 w-1.5 animate-pulse bg-neutral-400 align-middle" />
           )}
         </div>
+        {activeSource && <CitationViewer source={activeSource} />}
         {message.sources && message.sources.length > 0 && (
-          <SourcesPanel sources={message.sources} />
+          <SourcesPanel
+            sources={message.sources}
+            activeIndex={activeCitation}
+            onSelect={(n) =>
+              setActiveCitation((cur) => (cur === n ? null : n))
+            }
+          />
         )}
       </div>
     </div>
   );
 }
 
-function SourcesPanel({ sources }: { sources: Source[] }) {
+/**
+ * Splits the streamed text on inline [N] citations and renders each match
+ * as a clickable button. Plain text segments are rendered as-is. Whitespace
+ * is preserved via `whitespace-pre-wrap` on the parent.
+ */
+function renderAnswerWithCitations(
+  text: string,
+  sources: Source[],
+  onCitationClick: (n: number) => void,
+): React.ReactNode {
+  const validIndices = new Set(sources.map((s) => s.index));
+  const parts: React.ReactNode[] = [];
+  const re = /\[(\d+)\]/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) {
+      parts.push(<span key={`t${key++}`}>{text.slice(last, m.index)}</span>);
+    }
+    const n = Number(m[1]);
+    if (validIndices.has(n)) {
+      parts.push(
+        <button
+          key={`c${key++}`}
+          type="button"
+          onClick={() => onCitationClick(n)}
+          className="citation"
+          aria-label={`Show source ${n}`}
+        >
+          [{n}]
+        </button>,
+      );
+    } else {
+      parts.push(<span key={`u${key++}`}>{m[0]}</span>);
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) {
+    parts.push(<span key={`t${key++}`}>{text.slice(last)}</span>);
+  }
+  return parts;
+}
+
+function CitationViewer({ source }: { source: Source }) {
+  return (
+    <div
+      id={`viewer-${source.index}`}
+      className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900/60 dark:bg-blue-950/40"
+    >
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <div className="font-medium text-blue-900 dark:text-blue-200">
+          [{source.index}] {source.title}
+          {source.heading && (
+            <span className="ml-1 font-normal text-blue-700/80 dark:text-blue-300/80">
+              — {source.heading}
+            </span>
+          )}
+        </div>
+        <a
+          href={source.source || "#"}
+          className="shrink-0 text-blue-700 hover:underline dark:text-blue-300"
+          target={source.source.startsWith("http") ? "_blank" : undefined}
+          rel={source.source.startsWith("http") ? "noreferrer" : undefined}
+        >
+          open file ↗
+        </a>
+      </div>
+      <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap font-sans text-neutral-700 dark:text-neutral-200">
+        {source.text}
+      </pre>
+    </div>
+  );
+}
+
+function SourcesPanel({
+  sources,
+  activeIndex,
+  onSelect,
+}: {
+  sources: Source[];
+  activeIndex: number | null;
+  onSelect: (n: number) => void;
+}) {
   const [open, setOpen] = useState(true);
   return (
     <div className="border-t border-neutral-200 pt-2 text-xs dark:border-neutral-800">
@@ -270,28 +373,34 @@ function SourcesPanel({ sources }: { sources: Source[] }) {
       </button>
       {open && (
         <ul className="mt-2 space-y-1.5">
-          {sources.map((s) => (
-            <li
-              key={s.index}
-              id={`s${s.index}`}
-              className="rounded-md bg-neutral-50 px-2 py-1.5 dark:bg-neutral-800/60"
-            >
-              <a
-                href={s.source || "#"}
-                className="font-medium text-blue-700 hover:underline dark:text-blue-300"
-                target={s.source.startsWith("http") ? "_blank" : undefined}
-                rel={s.source.startsWith("http") ? "noreferrer" : undefined}
+          {sources.map((s) => {
+            const isActive = activeIndex === s.index;
+            return (
+              <li
+                key={s.index}
+                id={`s${s.index}`}
+                className={`rounded-md px-2 py-1.5 ${
+                  isActive
+                    ? "bg-blue-100 ring-1 ring-blue-300 dark:bg-blue-900/40 dark:ring-blue-700"
+                    : "bg-neutral-50 dark:bg-neutral-800/60"
+                }`}
               >
-                [{s.index}] {s.title}
-              </a>
-              {s.heading && (
-                <span className="ml-1 text-neutral-500">— {s.heading}</span>
-              )}
-              <span className="ml-2 text-neutral-400">
-                ({(s.similarity * 100).toFixed(0)}%)
-              </span>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => onSelect(s.index)}
+                  className="text-left font-medium text-blue-700 hover:underline dark:text-blue-300"
+                >
+                  [{s.index}] {s.title}
+                </button>
+                {s.heading && (
+                  <span className="ml-1 text-neutral-500">— {s.heading}</span>
+                )}
+                <span className="ml-2 text-neutral-400">
+                  ({(s.similarity * 100).toFixed(0)}%)
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

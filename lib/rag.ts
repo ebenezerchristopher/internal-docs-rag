@@ -133,12 +133,21 @@ export async function ask(question: string): Promise<AskResult> {
   // Prepend a small header that the UI can use to display sources as soon as
   // streaming begins. The format is a single JSON line followed by a blank line
   // and the streamed answer text.
+  //
+  // Each source includes the full chunk text (truncated to TEXT_PREVIEW_CHARS
+  // to keep the header small) so the client can show the citation on demand
+  // without a second round trip.
+  const TEXT_PREVIEW_CHARS = 2000;
   const header = `__SOURCES__${JSON.stringify(sources.map((s) => ({
     index: s.index,
     title: s.title,
     heading: s.heading,
     source: s.source,
     similarity: s.similarity,
+    text:
+      s.text.length > TEXT_PREVIEW_CHARS
+        ? s.text.slice(0, TEXT_PREVIEW_CHARS) + "\n\n[…truncated…]"
+        : s.text,
   })))}\n\n`;
 
   const wrapped = new ReadableStream<Uint8Array>({
