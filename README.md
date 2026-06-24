@@ -39,6 +39,30 @@ swap-ins:
    Open <http://localhost:3000> and ask
    *"What's our process when a client complains about a delay?"*
 
+## Importing your own docs from Notion
+
+In the app, click **Import from Notion** in the header. You'll be asked
+for a Notion integration token and a root page ID; the import walks the
+page tree under that page and indexes every page it finds. See the
+"Notion import" section below for the full workflow.
+
+## Pushing the seed corpus into Notion
+
+If you want to seed a Notion workspace with the 60 synthetic docs that
+ship in `content/docs/`, use the export script:
+
+```bash
+NOTION_TOKEN=secret_... \
+NOTION_PARENT_PAGE_ID=<uuid of the page you want the docs under> \
+node scripts/notion-export.mjs
+```
+
+The integration needs the **Insert content** capability, and the parent
+page must be shared with the integration. The script creates one Notion
+page per markdown file, converting headings, lists, code, quotes, etc.
+into Notion blocks. Re-runs add new pages; to rebuild, delete the prior
+pages in Notion or use a fresh parent.
+
 ## Deploy to Vercel
 
 1. Push the repo to GitHub.
