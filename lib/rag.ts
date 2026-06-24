@@ -24,9 +24,9 @@ const REFUSAL_TEXT = "I don't have a doc that covers that.";
 
 function similarityThreshold(): number {
   const v = process.env.SIMILARITY_THRESHOLD;
-  if (!v) return 0.72;
+  if (!v) return 0.3;
   const n = Number(v);
-  return Number.isFinite(n) ? n : 0.72;
+  return Number.isFinite(n) ? n : 0.3;
 }
 
 function formatSourceBlock(sources: Source[]): string {
@@ -90,6 +90,15 @@ export async function ask(question: string): Promise<AskResult> {
   const maxSim = rows.reduce(
     (m, r) => (r.similarity > m ? r.similarity : m),
     0,
+  );
+
+  // Log the top scores so the user can see what the embedding model is
+  // actually returning. Useful for tuning SIMILARITY_THRESHOLD.
+  const scoreSummary = rows
+    .map((r, i) => `${i + 1}:${r.similarity.toFixed(3)}`)
+    .join(" ");
+  console.log(
+    `[/api/ask] top scores [${scoreSummary}] max=${maxSim.toFixed(3)} threshold=${similarityThreshold()}`,
   );
 
   if (maxSim < similarityThreshold()) {
@@ -158,3 +167,51 @@ export async function ask(question: string): Promise<AskResult> {
 }
 
 export { REFUSAL_TEXT };
+
+/**
+ * Debug helper: retrieves the top-k chunks without applying the gate or
+ * calling the LLM. Used by the `?debug=1` mode of /api/ask to inspect
+ * similarity scores.
+ */
+export async function debugRetrieve(question: string): Promise<{
+  question: string;
+  threshold: number;
+  matches: { id: string; title: string; heading: string; source: string; similarity: number; text_preview: string }[];
+  refused: boolean;
+}> {
+  const trimmed = question.trim();
+  const embeddings = EmbeddingsClient.fromEnv();
+  const supabase = getSupabase();
+  const [queryVec] = await embeddings.embed([trimmed]);
+  const { data, error } = await supabase.rpc("match_documents", {
+    query_embedding: queryVec,
+    match_count: 6,
+    match_threshold: 0,
+  });
+  if (error) throw new Error(`match_documents failed: ${error.message}`);
+  type Row = {
+    id: string;
+    content: string;
+    metadata: { title?: string; heading?: string; source?: string };
+    similarity: number;
+  };
+  const rows: Row[] = (data ?? []) as Row[];
+  const maxSim = rows.reduce(
+    (m, r) => (r.similarity > m ? r.similarity : m),
+    0,
+  );
+  const threshold = similarityThreshold();
+  return {
+    question: trimmed,
+    threshold,
+    refused: maxSim < threshold,
+    matches: rows.map((r) => ({
+      id: r.id,
+      title: r.metadata.title ?? "Untitled",
+      heading: r.metadata.heading ?? "",
+      source: r.metadata.source ?? "",
+      similarity: Number(r.similarity.toFixed(4)),
+      text_preview: r.content.slice(0, 200),
+    })),
+  };
+}

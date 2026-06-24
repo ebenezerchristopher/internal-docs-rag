@@ -24,6 +24,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ?debug=1 returns the retrieved sources as JSON without calling the LLM.
+  // Useful for tuning SIMILARITY_THRESHOLD.
+  const debug = new URL(req.url).searchParams.get("debug") === "1";
+  if (debug) {
+    const { debugRetrieve } = await import("@/lib/rag");
+    const result = await debugRetrieve(question);
+    return new Response(JSON.stringify(result, null, 2), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
   try {
     const result = await ask(question);
     if (result.kind === "refusal") {
