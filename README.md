@@ -13,6 +13,7 @@ swap-ins:
   providers — set `EMBEDDING_BASE_URL`/`EMBEDDING_API_KEY` separately from
   `GENERATION_BASE_URL`/`GENERATION_API_KEY`.
 - **Vector store:** Supabase Postgres + `pgvector`. One table, one RPC.
+- **Notion import:** users paste their Notion integration token + a root page ID into a modal; the server walks the page tree, converts to markdown, chunks, embeds, and upserts. Citations link to the original Notion page.
 
 ## Demo in 5 minutes
 
@@ -53,16 +54,28 @@ swap-ins:
 ```
 content/docs/**/*.md
         |
-        | (prebuild)
+        | (prebuild, optional)
         v
 scripts/build-index.mjs
   - parse frontmatter, chunk by heading
   - embed with the OpenAI-compatible /v1/embeddings
   - upsert to Supabase documents table
+
+OR (at runtime, user-triggered):
+
+Notion page tree
+        |
+        v
+app/api/notion/import/route.ts
+  - walk page tree from a root page ID
+  - convert Notion blocks to markdown
+  - chunk, embed, upsert
+  - stream NDJSON progress to the client
+
         |
         v
 Supabase (pgvector)
-  documents(id, content, metadata, embedding vector(1536))
+  documents(id, content, metadata, embedding vector(2048))
   match_documents(query_embedding, match_count, match_threshold)
         ^
         | (query: top-6 cosine)
@@ -78,6 +91,7 @@ app/api/ask/route.ts
         v
 app/page.tsx + app/components/Chat.tsx
   - chat input, streaming text, inline [1] links, sources panel
+  - "Import from Notion" button opens a modal for per-user import
 ```
 
 ### The two-stage honesty guardrail
@@ -142,23 +156,26 @@ incrementally as it arrives.
 
 ```
 app/
-  api/ask/route.ts        # streaming POST endpoint
-  components/Chat.tsx     # chat UI
-  globals.css             # tailwind + small custom styles
-  layout.tsx              # root layout
-  page.tsx                # mounts <Chat />
-content/docs/             # 60 synthetic logistics markdown files
+  api/ask/route.ts            # streaming POST endpoint
+  api/notion/import/route.ts  # streaming Notion import endpoint
+  components/Chat.tsx         # chat UI
+  components/NotionImportButton.tsx  # import modal
+  globals.css                 # tailwind + small custom styles
+  layout.tsx                  # root layout
+  page.tsx                    # mounts <Chat />
+content/docs/                 # 60 synthetic logistics markdown files
 lib/
-  chunk.ts                # markdown chunker (shared shape, used by app)
-  embeddings.ts           # OpenAI-compatible embeddings client
-  llm.ts                  # OpenAI-compatible streaming LLM client
-  rag.ts                  # orchestrator: embed → retrieve → gate → stream
-  supabase.ts             # server-side Supabase client
+  chunk.ts                    # markdown chunker (shared shape, used by app)
+  embeddings.ts               # OpenAI-compatible embeddings client
+  llm.ts                      # OpenAI-compatible streaming LLM client
+  notion.ts                   # Notion API client (page tree → markdown)
+  rag.ts                      # orchestrator: embed → retrieve → gate → stream
+  supabase.ts                 # server-side Supabase client
 scripts/
-  build-index.mjs         # runs at prebuild, also `npm run index`
-  check-env.mjs           # prints which env vars are set
+  build-index.mjs             # runs at prebuild, also `npm run index`
+  check-env.mjs               # prints which env vars are set
 supabase/migrations/
-  0001_init.sql           # documents table + match_documents RPC
+  0001_init.sql               # documents table + match_documents RPC
 ```
 
 ## Scripts
@@ -180,8 +197,11 @@ supabase/migrations/
 | Indexer API rate limit | Bounded concurrency (8) and 3 retries with exponential backoff. |
 | LLM provider 5xx | Bubbles up as a 500 to the client. The UI shows the error message inline. |
 | Supabase down | Retrieval throws; the route returns 500. |
-| Embedding dim mismatch | Hard-coded to 1536. If a different model is used, the migration's `vector(1536)` and the embedder's assumed dim must match. |
+| Embedding dim mismatch | Hard-coded to 2048. If a different model is used, the migration's `vector(2048)` and the embedder's assumed dim must match. |
 | OpenAI-compatible quirks | Most providers implement `/v1/embeddings` and `/v1/chat/completions` (OpenRouter, Together, Groq, Ollama). The streaming parser tolerates malformed SSE lines. |
+| Notion: invalid token / forbidden page | The import endpoint returns an NDJSON `error` event; the modal shows the message. |
+| Notion: rate limit (~3 req/s) | We make at most one request at a time. For very large trees the import takes minutes; the modal shows live progress. |
+| Notion: page not shared with integration | The import logs the skipped page in the modal and continues. |
 
 ## License
 

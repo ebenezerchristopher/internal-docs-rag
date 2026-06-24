@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { NotionImportButton } from "./NotionImportButton";
 
 type Role = "user" | "assistant" | "system";
 
@@ -149,11 +150,14 @@ export function Chat() {
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col gap-4 px-4 py-6">
-      <header className="border-b border-neutral-200 pb-4 dark:border-neutral-800">
-        <h1 className="text-xl font-semibold">Internal Docs Assistant</h1>
-        <p className="text-sm text-neutral-500">
-          Ask about our logistics processes. Answers cite the source doc.
-        </p>
+      <header className="flex items-start justify-between gap-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+        <div>
+          <h1 className="text-xl font-semibold">Internal Docs Assistant</h1>
+          <p className="text-sm text-neutral-500">
+            Ask about our logistics processes. Answers cite the source doc.
+          </p>
+        </div>
+        <NotionImportButton />
       </header>
 
       <div
@@ -319,6 +323,7 @@ function renderAnswerWithCitations(
 }
 
 function CitationViewer({ source }: { source: Source }) {
+  const isNotion = source.source.includes("notion.so");
   return (
     <div
       id={`viewer-${source.index}`}
@@ -326,21 +331,29 @@ function CitationViewer({ source }: { source: Source }) {
     >
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
         <div className="font-medium text-blue-900 dark:text-blue-200">
-          [{source.index}] {source.title}
+          [{source.index}]{" "}
+          {isNotion && (
+            <span className="mr-1 rounded bg-neutral-200 px-1 py-0.5 text-[10px] font-normal text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
+              Notion
+            </span>
+          )}
+          {source.title}
           {source.heading && (
             <span className="ml-1 font-normal text-blue-700/80 dark:text-blue-300/80">
               — {source.heading}
             </span>
           )}
         </div>
-        <a
-          href={source.source || "#"}
-          className="shrink-0 text-blue-700 hover:underline dark:text-blue-300"
-          target={source.source.startsWith("http") ? "_blank" : undefined}
-          rel={source.source.startsWith("http") ? "noreferrer" : undefined}
-        >
-          open file ↗
-        </a>
+        {source.source && (
+          <a
+            href={source.source}
+            className="shrink-0 text-blue-700 hover:underline dark:text-blue-300"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {isNotion ? "open in Notion ↗" : "open file ↗"}
+          </a>
+        )}
       </div>
       <pre className="max-h-64 overflow-y-auto whitespace-pre-wrap font-sans text-neutral-700 dark:text-neutral-200">
         {source.text}
@@ -390,7 +403,13 @@ function SourcesPanel({
                   onClick={() => onSelect(s.index)}
                   className="text-left font-medium text-blue-700 hover:underline dark:text-blue-300"
                 >
-                  [{s.index}] {s.title}
+                  [{s.index}]{" "}
+                  {s.source.includes("notion.so") && (
+                    <span className="mr-1 rounded bg-neutral-200 px-1 py-0.5 text-[9px] font-normal text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200">
+                      Notion
+                    </span>
+                  )}
+                  {s.title}
                 </button>
                 {s.heading && (
                   <span className="ml-1 text-neutral-500">— {s.heading}</span>
