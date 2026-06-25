@@ -73,6 +73,17 @@ pages in Notion or use a fresh parent.
    Supabase; if env vars are missing, the build will fail loudly.
 5. Once the build is green, Vercel gives you the live URL.
 
+**Note on the prebuild and Notion imports.** The `prebuild` script
+runs the file indexer on every deploy. Because the file and Notion
+indexers are mutually exclusive (whichever runs last wins), a redeploy
+will wipe any Notion import you made. To keep a Notion import across
+redeploys, either:
+
+- Re-import via the app after each deploy, or
+- Remove the prebuild (`vercel.json` → `"buildCommand": "next build"`,
+  or omit the `prebuild` script and run `npm run index` manually
+  before pushing).
+
 ## Architecture
 
 ```
