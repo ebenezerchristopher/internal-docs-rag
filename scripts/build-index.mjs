@@ -308,6 +308,32 @@ async function main() {
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
+  // Skip the file index if Notion chunks are present. The file indexer
+  // is the default for fresh deploys, but on subsequent deploys the
+  // prebuild would otherwise wipe a Notion import. Set FORCE_FILE_INDEX=1
+  // to bypass this check and replace whatever is in the index with the
+  // sample file docs.
+  if (process.env.FORCE_FILE_INDEX !== "1") {
+    const { data: notionRows, error: notionCheckErr } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("metadata->>source_type", "notion")
+      .limit(1);
+    if (notionCheckErr) {
+      console.warn(
+        `[index] (warn) could not check for Notion rows: ${notionCheckErr.message}`,
+      );
+    } else if (notionRows && notionRows.length > 0) {
+      console.log(
+        `[index] Notion-imported chunks detected; skipping file index to preserve them.`,
+      );
+      console.log(
+        `[index] To replace them with the file corpus, set FORCE_FILE_INDEX=1 and re-run.`,
+      );
+      return;
+    }
+  }
+
   // Upsert in batches to stay under Supabase's request size limits.
   const UPSERT_BATCH = 100;
   for (let i = 0; i < rows.length; i += UPSERT_BATCH) {
