@@ -265,6 +265,7 @@ async function main() {
         id: c.id,
         content: c.text,
         metadata: {
+          source_type: "file",
           title: c.title,
           heading: c.heading,
           source: c.source,
@@ -319,10 +320,23 @@ async function main() {
     console.log(`[index] upserted ${i + batch.length}/${rows.length}`);
   }
 
-  // Clean up any rows from previous builds so the table stays tidy.
+  // Clean up so the file indexer is authoritative when it runs:
+  //   1. Drop any Notion-imported rows (source_type = "notion").
+  //   2. Drop prior file builds (anything tagged as "file" with a
+  //      different build_id).
+  // The newly upserted rows have source_type = "file" and
+  // build_id = BUILD_ID, so neither delete touches them.
+  const { error: delNotion } = await supabase
+    .from("documents")
+    .delete()
+    .eq("metadata->>source_type", "notion");
+  if (delNotion) {
+    console.warn(`[index] (warn) could not drop Notion rows: ${delNotion.message}`);
+  }
   const { error: cleanupErr } = await supabase
     .from("documents")
     .delete()
+    .eq("metadata->>source_type", "file")
     .neq("metadata->>build_id", BUILD_ID);
   if (cleanupErr) {
     console.warn(

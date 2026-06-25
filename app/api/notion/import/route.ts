@@ -98,14 +98,28 @@ export async function POST(req: NextRequest) {
           encode({ type: "start", total_pages: pages.length, root_title: rootPage.title }),
         );
 
-        // Delete any prior Notion-imported chunks (idempotent re-imports).
-        const { error: delErr } = await supabase
+        // The Notion import is authoritative: it replaces whatever is
+        // currently indexed. Drop any prior Notion rows AND any
+        // file-imported rows. The newly upserted rows are tagged
+        // source_type = "notion", so neither delete touches them.
+        const { error: delNotion } = await supabase
           .from("documents")
           .delete()
           .eq("metadata->>source_type", "notion");
-        if (delErr) {
+        if (delNotion) {
           controller.enqueue(
-            encode({ type: "error", message: `Cleanup failed: ${delErr.message}` }),
+            encode({ type: "error", message: `Cleanup failed: ${delNotion.message}` }),
+          );
+          controller.close();
+          return;
+        }
+        const { error: delFile } = await supabase
+          .from("documents")
+          .delete()
+          .eq("metadata->>source_type", "file");
+        if (delFile) {
+          controller.enqueue(
+            encode({ type: "error", message: `Cleanup failed: ${delFile.message}` }),
           );
           controller.close();
           return;
