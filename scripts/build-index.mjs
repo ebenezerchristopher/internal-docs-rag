@@ -30,7 +30,7 @@ function checkEnv() {
   if (missing.length) {
     console.error(
       `[index] Missing required env vars: ${missing.join(", ")}\n` +
-        "Set them in .env.local (see .env.example) and try again.",
+        "Set them in .env (see .env.example) and try again.",
     );
     process.exit(1);
   }

@@ -25,7 +25,7 @@ swap-ins:
    **2048** to match `nvidia/llama-nemotron-embed-vl-1b-v2:free`. If you
    switch embedding models to a different dim, change every `2048` in
    the migration to the new dim and re-run it.
-3. Copy `.env.example` to `.env.local` and fill in the values. Embeddings
+3. Copy `.env.example` to `.env` and fill in the values. Embeddings
    and generation can use different providers.
 4. Install deps and build the index locally to confirm everything works:
    ```bash
